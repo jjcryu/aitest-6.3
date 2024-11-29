@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회의실/장비 예약 시스템</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .calendar {
+            flex: 2;
+            min-width: 300px;
+        }
+
+        .reservation-list {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .time-slots {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .time-slot {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .time-slot.available {
+            background-color: #e8f5e9;
+        }
+
+        .time-slot.reserved {
+            background-color: #ffebee;
+            cursor: not-allowed;
+        }
+
+        .reservation-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>회의실/장비 예약 시스템</h1>
+    <div class="container">
+        <div class="calendar">
+            <h2>예약 현황</h2>
+            <input type="date" id="date-picker">
+            <div class="time-slots" id="time-slots"></div>
+        </div>
+        <div class="reservation-list">
+            <h2>나의 예약 목록</h2>
+            <div id="my-reservations"></div>
+        </div>
+    </div>
+
+    <script>
+        class ReservationSystem {
+            constructor() {
+                this.reservations = new Map();
+                this.init();
+            }
+
+            init() {
+                this.datePicker = document.getElementById('date-picker');
+                this.timeSlotsContainer = document.getElementById('time-slots');
+                this.myReservationsContainer = document.getElementById('my-reservations');
+
+                this.datePicker.valueAsDate = new Date();
+                this.datePicker.addEventListener('change', () => this.renderTimeSlots());
+
+                this.renderTimeSlots();
+                this.renderMyReservations();
+            }
+
+            generateTimeSlots() {
+                const slots = [];
+                for (let hour = 9; hour <= 18; hour++) {
+                    slots.push(`${hour}:00`);
+                }
+                return slots;
+            }
+
+            getReservationKey(date, time) {
+                return `${date}_${time}`;
+            }
+
+            isSlotAvailable(date, time) {
+                return !this.reservations.has(this.getReservationKey(date, time));
+            }
+
+            renderTimeSlots() {
+                const date = this.datePicker.value;
+                const slots = this.generateTimeSlots();
+                
+                this.timeSlotsContainer.innerHTML = slots.map(time => {
+                    const isAvailable = this.isSlotAvailable(date, time);
+                    return `
+                        <div class="time-slot ${isAvailable ? 'available' : 'reserved'}"
+                             onclick="${isAvailable ? `this.makeReservation('${date}', '${time}')` : ''}"
+                             data-time="${time}">
+                            ${time}
+                            ${isAvailable ? '예약가능' : '예약됨'}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            makeReservation(date, time) {
+                const key = this.getReservationKey(date, time);
+                if (this.isSlotAvailable(date, time)) {
+                    this.reservations.set(key, {
+                        date,
+                        time,
+                        timestamp: new Date().toISOString()
+                    });
+                    this.renderTimeSlots();
+                    this.renderMyReservations();
+                }
+            }
+
+            cancelReservation(date, time) {
+                const key = this.getReservationKey(date, time);
+                if (this.reservations.has(key)) {
+                    this.reservations.delete(key);
+                    this.renderTimeSlots();
+                    this.renderMyReservations();
+                }
+            }
+
+            renderMyReservations() {
+                const reservationsList = Array.from(this.reservations.values())
+                    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                this.myReservationsContainer.innerHTML = reservationsList.map(reservation => `
+                    <div class="reservation-item">
+                        <div>날짜: ${reservation.date}</div>
+                        <div>시간: ${reservation.time}</div>
+                        <button onclick="reservationSystem.cancelReservation('${reservation.date}', '${reservation.time}')">
+                            취소
+                        </button>
+                    </div>
+                `).join('') || '<p>예약된 항목이 없습니다.</p>';
+            }
+        }
+
+        const reservationSystem = new ReservationSystem();
+    </script>
+</body>
+</html>
